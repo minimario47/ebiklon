@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vägsökning Test – Ebiklon</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 3rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #718096;
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+
+    .input-section {
+      background: #f7fafc;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1.1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    button {
+      padding: 0.75rem 2rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      font-weight: 500;
+    }
+
+    .status.loading {
+      background: #bee3f8;
+      color: #2c5282;
+    }
+
+    .status.error {
+      background: #fed7d7;
+      color: #c53030;
+    }
+
+    .status.success {
+      background: #c6f6d5;
+      color: #276749;
+    }
+
+    .results {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .path-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .path-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .path-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .path-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #2d3748;
+    }
+
+    .path-length {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .path-section {
+      margin-top: 1rem;
+    }
+
+    .path-section-title {
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .path-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .path-item {
+      padding: 0.4rem 0.8rem;
+      background: #edf2f7;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: #2d3748;
+      font-weight: 500;
+    }
+
+    .path-item.signal {
+      background: #bee3f8;
+      color: #2c5282;
+    }
+
+    .path-item.poi {
+      background: #fed7d7;
+      color: #c53030;
+    }
+
+    .path-item.dcr {
+      background: #feebc8;
+      color: #c05621;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #718096;
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚂 Vägsökning</h1>
+    <p class="subtitle">Hitta alla vägar mellan signaler, stoppbock och slutpunkter</p>
+
+    <div class="input-section">
+      <div class="input-group">
+        <div class="field">
+          <label for="startSignal">Start Signal/Stoppbock</label>
+          <input type="text" id="startSignal" placeholder="t.ex. 862" value="862">
+        </div>
+
+        <div class="field">
+          <label for="viaSignal">Via (valfritt)</label>
+          <input type="text" id="viaSignal" placeholder="t.ex. 864">
+        </div>
+
+        <div class="field">
+          <label for="endSignal">Mål Signal/Stoppbock</label>
+          <input type="text" id="endSignal" placeholder="t.ex. 872" value="872">
+        </div>
+
+        <button id="searchBtn" onclick="searchPaths()">Sök Vägar</button>
+      </div>
+    </div>
+
+    <div id="status" class="status" style="display: none;"></div>
+
+    <div id="results" class="results"></div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="empty-state-icon">🗺️</div>
+      <h2>Skriv in start och mål</h2>
+      <p>Klicka på "Sök Vägar" för att hitta alla möjliga rutter</p>
+    </div>
+  </div>
+
+  <script type="module">
+    // Detta är en mockad version – du behöver importera faktiska moduler
+    // import { GraphBuilder } from './geo/graphBuilder.js';
+    // import { PathEngine } from './geo/pathEngine.js';
+
+    window.searchPaths = async function() {
+      const startSignal = document.getElementById('startSignal').value.trim();
+      const endSignal = document.getElementById('endSignal').value.trim();
+      const viaSignal = document.getElementById('viaSignal').value.trim();
+
+      if (!startSignal || !endSignal) {
+        showStatus('Ange både start och mål', 'error');
+        return;
+      }
+
+      showStatus('Laddar geodata och söker vägar...', 'loading');
+      document.getElementById('searchBtn').disabled = true;
+      document.getElementById('emptyState').style.display = 'none';
+
+      try {
+        // Här skulle du ladda geodata och köra vägsökningen
+        // const graph = new GraphBuilder();
+        // graph.buildFromGeoJSON(...);
+        // const engine = new PathEngine(graph);
+        // const paths = engine.findPaths(startSignal, endSignal, viaSignal || undefined);
+
+        // Mockad data för demo
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const mockPaths = [
+          {
+            totalLength: 1234,
+            crossedObjects: [
+              { type: 'signal', id: startSignal, distanceAlongPath: 0 },
+              { type: 'poi', id: '725', distanceAlongPath: 100 },
+              { type: 'poi', id: '723', distanceAlongPath: 200 },
+              { type: 'dcr', id: '861', distanceAlongPath: 300 },
+              { type: 'signal', id: endSignal, distanceAlongPath: 400 },
+            ],
+          },
+        ];
+
+        displayResults(mockPaths);
+        showStatus(`Hittade ${mockPaths.length} vägar`, 'success');
+      } catch (error) {
+        showStatus('Fel vid sökning: ' + error.message, 'error');
+      } finally {
+        document.getElementById('searchBtn').disabled = false;
+      }
+    };
+
+    function showStatus(message, type) {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      status.className = 'status ' + type;
+      status.style.display = 'block';
+    }
+
+    function displayResults(paths) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+
+      if (paths.length === 0) {
+        document.getElementById('emptyState').style.display = 'block';
+        return;
+      }
+
+      paths.forEach((path, i) => {
+        const card = document.createElement('div');
+        card.className = 'path-card';
+
+        const signals = path.crossedObjects.filter(o => o.type === 'signal');
+        const pois = path.crossedObjects.filter(o => o.type === 'poi');
+        const dcrs = path.crossedObjects.filter(o => o.type === 'dcr');
+
+        card.innerHTML = `
+          <div class="path-header">
+            <div class="path-title">Väg ${i + 1}</div>
+            <div class="path-length">${Math.round(path.totalLength)} m</div>
+          </div>
+
+          ${signals.length > 0 ? `
+            <div class="path-section">
+              <div class="path-section-title">🚦 Signaler (${signals.length})</div>
+              <div class="path-items">
+                ${signals.map(s => `<span class="path-item signal">${s.id}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          ${pois.length > 0 ? `
+            <div class="path-section">
+              <div class="path-section-title">🔀 Växlar (${pois.length})</div>
+              <div class="path-items">
+                ${pois.map(p => `<span class="path-item poi">${p.id}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          ${dcrs.length > 0 ? `
+            <div class="path-section">
+              <div class="path-section-title">✖️ DCR (${dcrs.length})</div>
+              <div class="path-items">
+                ${dcrs.map(d => `<span class="path-item dcr">${d.id}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+        `;
+
+        resultsDiv.appendChild(card);
+      });
+    }
+
+    // Enter-stöd
+    ['startSignal', 'viaSignal', 'endSignal'].forEach(id => {
+      document.getElementById(id).addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchPaths();
+      });
+    });
+  </script>
+</body>
+</html>
+

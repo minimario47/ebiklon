@@ -1,0 +1,93 @@
+body {
+    font-family: sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+#svg-container {
+    width: 90%;
+    max-width: 1200px;
+}
+
+svg {
+    width: 100%;
+    height: auto;
+}
+
+/* Add pointer cursor to clickable elements */
+g[id^="A"] {
+    cursor: pointer;
+}
+
+/* Popover used to show element data */
+.popover {
+    position: absolute;
+    background: #ffffff;
+    color: #222222;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 8px 10px 10px 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+    max-width: 320px;
+    z-index: 9999;
+}
+
+.popover.hidden {
+    display: none;
+}
+
+/* Smooth blink effect for selected SVG groups */
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+g.blinking, g.blinking * {
+    animation: blink 1.2s ease-in-out infinite;
+}
+
+/* Stronger visual emphasis on shapes when blinking */
+@keyframes pulseStroke { 0%, 100% { stroke-width: 3px; } 50% { stroke-width: 12px; } }
+g.blinking path,
+g.blinking line,
+g.blinking rect,
+g.blinking circle,
+g.blinking ellipse,
+g.blinking polyline,
+g.blinking polygon {
+    stroke: #ffcc00 !important;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    animation: blink 1.2s ease-in-out infinite, pulseStroke 1.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 2px #ffcc00) drop-shadow(0 0 8px rgba(255,204,0,0.9)) drop-shadow(0 0 16px rgba(255,204,0,0.6));
+    fill: rgba(255, 245, 157, 0.25);
+}
+
+.popover .popover-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    line-height: 22px;
+    text-align: center;
+    border: 1px solid #d8d8d8;
+    border-radius: 6px;
+    background: #f5f5f5;
+    color: #333;
+    cursor: pointer;
+    font-size: 18px;
+}
+.popover .popover-close:hover {
+    background: #ececec;
+    border-color: #cfcfcf;
+    color: #111;
+}

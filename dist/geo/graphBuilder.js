@@ -1,0 +1,240 @@
+import { LengthMeasurementManager } from './lengthMeasurement.js';
+export class GraphBuilder {
+    constructor() {
+        this.nodes = new Map();
+        this.edges = [];
+        this.snappedObjects = [];
+        this.lengthManager = new LengthMeasurementManager();
+        this.config = {
+            snapToleranceMeters: 10,
+            angleRejectDegMin: 80,
+            angleRejectDegMax: 100,
+            uTurnDeg: 150,
+            maxNodes: 2000,
+            maxPathLengthMeters: 10000,
+            kPathsPerPair: 10,
+            maxTurnDegAtSwitch: 120, // Mjukare vid växlar
+            maxTurnDegGeneral: 45, // Mjukare generellt
+        };
+    }
+    buildFromGeoJSON(netLinks, netNodes, signals, stoppbock, vaxlar, dcr, lengthMeasurements) {
+        // 0. Ladda längdmätningsdata om tillgänglig
+        if (lengthMeasurements) {
+            this.lengthManager.loadFromGeoJSON(lengthMeasurements);
+            this.lengthManager.printStats();
+        }
+        // 1. Bygg noder
+        for (const feat of netNodes.features) {
+            const coords = feat.geometry.coordinates;
+            const oid = feat.properties.OID || feat.properties.id;
+            this.nodes.set(oid, {
+                oid,
+                coord: { x: coords[0], y: coords[1], z: coords[2] || 0 },
+            });
+        }
+        // 2. Bygg kanter (båda riktningar)
+        for (const feat of netLinks.features) {
+            const coords = feat.geometry.coordinates.map((c) => ({
+                x: c[0],
+                y: c[1],
+                z: c[2] || 0,
+            }));
+            const link = {
+                id: feat.properties.id || feat.properties.ELEMENT_ID,
+                startNodeOid: feat.properties.START_NODE_OID,
+                endNodeOid: feat.properties.END_NODE_OID,
+                length: feat.properties.LENGTH || 0,
+                coords,
+                elementId: feat.properties.ELEMENT_ID,
+            };
+            // A→B
+            this.edges.push({
+                fromNode: link.startNodeOid,
+                toNode: link.endNodeOid,
+                link,
+                reversed: false,
+            });
+            // B→A
+            this.edges.push({
+                fromNode: link.endNodeOid,
+                toNode: link.startNodeOid,
+                link,
+                reversed: true,
+            });
+        }
+        // 3. Snappa objekt
+        this.snapSignals(signals);
+        this.snapStoppbock(stoppbock);
+        this.snapVaxlar(vaxlar);
+        this.snapDCR(dcr);
+    }
+    snapSignals(signals) {
+        for (const sig of signals) {
+            const coords = sig.geometry.coordinates;
+            const coord = { x: coords[0], y: coords[1], z: coords[2] || 0 };
+            const nummer = this.normalizeNummer(sig.properties.Signalnr || sig.properties.Nummer);
+            if (!nummer)
+                continue;
+            const snapped = this.snapToEdge(coord, nummer, 'signal', sig.properties.ELEMENT_ID || sig.properties.id);
+            if (snapped) {
+                this.snappedObjects.push(snapped);
+            }
+        }
+    }
+    snapStoppbock(stoppbock) {
+        for (const sb of stoppbock) {
+            const coords = sb.geometry.coordinates;
+            const coord = { x: coords[0], y: coords[1], z: coords[2] || 0 };
+            const nummer = this.normalizeNummer(sb.properties.Nummer || sb.properties.id);
+            const snapped = this.snapToEdge(coord, nummer || 'sb_' + sb.properties.id, 'stoppbock', sb.properties.ELEMENT_ID || sb.properties.id);
+            if (snapped) {
+                this.snappedObjects.push(snapped);
+            }
+        }
+    }
+    snapVaxlar(vaxlar) {
+        for (const v of vaxlar) {
+            const coords = v.geometry.coordinates;
+            // Använd mittpunkt om LineString
+            let coord;
+            if (Array.isArray(coords[0])) {
+                const mid = coords[Math.floor(coords.length / 2)];
+                coord = { x: mid[0], y: mid[1], z: mid[2] || 0 };
+            }
+            else {
+                coord = { x: coords[0], y: coords[1], z: coords[2] || 0 };
+            }
+            const vaxelnr = this.normalizeNummer(v.properties.Vaxelnr);
+            if (!vaxelnr)
+                continue;
+            const snapped = this.snapToEdge(coord, vaxelnr, 'poi', v.properties.ELEMENT_ID || v.properties.id);
+            if (snapped) {
+                this.snappedObjects.push(snapped);
+            }
+        }
+    }
+    snapDCR(dcr) {
+        for (const d of dcr) {
+            const coords = d.geometry.coordinates;
+            const coord = { x: coords[0], y: coords[1], z: coords[2] || 0 };
+            const nummer = this.normalizeNummer(d.properties.Nummer);
+            if (!nummer)
+                continue;
+            const snapped = this.snapToEdge(coord, nummer, 'dcr', d.properties.ELEMENT_ID || d.properties.id);
+            if (snapped) {
+                this.snappedObjects.push(snapped);
+            }
+        }
+    }
+    snapToEdge(coord, id, type, elementId) {
+        let bestEdge = null;
+        let bestDist = Infinity;
+        let bestT = 0; // length-based fraction along the edge
+        for (const edge of this.edges) {
+            const line = edge.link.coords;
+            if (line.length < 2)
+                continue;
+            // För korrekt längdandel: räkna segmentlängder
+            const segLens = [];
+            let totalLen = 0;
+            for (let i = 0; i < line.length - 1; i++) {
+                const dx = line[i + 1].x - line[i].x;
+                const dy = line[i + 1].y - line[i].y;
+                const L = Math.sqrt(dx * dx + dy * dy);
+                segLens.push(L);
+                totalLen += L;
+            }
+            if (totalLen === 0)
+                continue;
+            let accum = 0;
+            for (let i = 0; i < line.length - 1; i++) {
+                const [proj, t, dist] = this.projectPointToSegment(coord, line[i], line[i + 1]);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestEdge = edge;
+                    const posLen = accum + t * segLens[i];
+                    bestT = posLen / totalLen; // längdbaserad andel
+                }
+                accum += segLens[i];
+            }
+        }
+        if (bestEdge && bestDist <= this.config.snapToleranceMeters) {
+            return {
+                type: type,
+                id,
+                originalId: id,
+                elementId,
+                coord,
+                edgeId: `${bestEdge.fromNode}->${bestEdge.toNode}`,
+                distanceAlongEdge: bestT,
+                snapDistance: bestDist,
+            };
+        }
+        return null;
+    }
+    projectPointToSegment(p, a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len2 = dx * dx + dy * dy;
+        if (len2 === 0)
+            return [a, 0, this.dist(p, a)];
+        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        const proj = { x: a.x + t * dx, y: a.y + t * dy, z: a.z + t * (b.z - a.z) };
+        return [proj, t, this.dist(p, proj)];
+    }
+    dist(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    normalizeNummer(n) {
+        if (!n)
+            return '';
+        let s = String(n).trim().toUpperCase();
+        // Ta bort "GBG " prefix
+        s = s.replace(/^GBG\s+/i, '');
+        // Ta bort suffixbokstäver
+        s = s.replace(/[A-Z]+$/, '');
+        return s;
+    }
+    getNodes() {
+        return this.nodes;
+    }
+    getEdges() {
+        return this.edges;
+    }
+    getSnappedObjects() {
+        return this.snappedObjects;
+    }
+    getConfig() {
+        return this.config;
+    }
+    findObjectById(id) {
+        const norm = this.normalizeNummer(id);
+        return this.snappedObjects.find((o) => o.id === norm);
+    }
+    /**
+     * Hämta korrigerad längd för en länk baserat på längdmätningsdata
+     * Om längdmätning finns, använd den. Annars fallback till link.length
+     */
+    getCorrectedLinkLength(link) {
+        // Beräkna geometrisk längd från koordinaterna
+        const coords = link.coords;
+        let sum = 0;
+        for (let i = 0; i < coords.length - 1; i++) {
+            const dx = coords[i + 1].x - coords[i].x;
+            const dy = coords[i + 1].y - coords[i].y;
+            sum += Math.sqrt(dx * dx + dy * dy);
+        }
+        return sum;
+    }
+    /**
+     * Hämta korrigerad längd för ett segment av en länk
+     */
+    getCorrectedSegmentLength(link, startFraction, endFraction) {
+        const frac = Math.abs(endFraction - startFraction);
+        return this.getCorrectedLinkLength(link) * frac;
+    }
+}
+//# sourceMappingURL=graphBuilder.js.map

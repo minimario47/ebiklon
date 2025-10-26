@@ -1,0 +1,170 @@
+/**
+ * Stilar för vägsökning UI
+ */
+
+/* Väg-knapp i popup */
+.path-search-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.path-search-btn:hover {
+  background: #45a049;
+}
+
+.path-search-btn:active {
+  background: #3d8b40;
+}
+
+/* Väg-popup */
+.path-popup {
+  font-family: Arial, sans-serif;
+  min-width: 250px;
+}
+
+.path-popup h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 2px solid #2196F3;
+  padding-bottom: 8px;
+}
+
+.path-info,
+.path-signals,
+.path-pois,
+.path-dcrs {
+  margin-bottom: 12px;
+}
+
+.path-popup p {
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.path-popup strong {
+  color: #555;
+}
+
+.path-signals p:last-child,
+.path-pois p:last-child,
+.path-dcrs p:last-child {
+  color: #2196F3;
+  font-family: 'Courier New', monospace;
+  background: #f5f5f5;
+  padding: 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.close-path-btn {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  width: 100%;
+  transition: background 0.3s;
+}
+
+.close-path-btn:hover {
+  background: #da190b;
+}
+
+/* Väg-visualisering på kartan */
+.leaflet-interactive.path-line {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.leaflet-interactive.path-line:hover {
+  stroke-width: 10 !important;
+}
+
+/* Markering av vald väg */
+.path-selected {
+  stroke: #FF5722 !important;
+  stroke-width: 8 !important;
+  opacity: 1 !important;
+  z-index: 1000 !important;
+}
+
+/* Omarkerade vägar */
+.path-unselected {
+  stroke: #2196F3 !important;
+  stroke-width: 5 !important;
+  opacity: 0.6 !important;
+}
+
+/* Animering när väg hittas */
+@keyframes pathFound {
+  0% {
+    stroke-width: 3;
+    opacity: 0.3;
+  }
+  50% {
+    stroke-width: 8;
+    opacity: 1;
+  }
+  100% {
+    stroke-width: 5;
+    opacity: 0.6;
+  }
+}
+
+.path-line-new {
+  animation: pathFound 0.8s ease-in-out;
+}
+
+/* Laddningsindikator */
+.path-loading {
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.path-loading::after {
+  content: '...';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%, 20% {
+    content: '.';
+  }
+  40% {
+    content: '..';
+  }
+  60%, 100% {
+    content: '...';
+  }
+}
+
+/* Responsiv design för mindre skärmar */
+@media (max-width: 600px) {
+  .path-popup {
+    min-width: 200px;
+  }
+  
+  .path-popup h3 {
+    font-size: 14px;
+  }
+  
+  .path-popup p {
+    font-size: 12px;
+  }
+}
+

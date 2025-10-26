@@ -1,0 +1,47 @@
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const svgElements = document.querySelectorAll('svg');
+
+        svgElements.forEach(svgElement => {
+            if (!svgElement) return;
+
+            const defaultTrackColor = 'rgb(130,150,150)';
+            const safeColors = [
+                defaultTrackColor, 'rgb(176,175,169)', 'rgb(0,0,0)', 'rgb(55,60,60)',
+                'rgb(120,135,135)', 'none', 'white', '#f1c40f', '#0088ff', '#0066dd', 'red'
+            ];
+
+            // Clean colors
+            svgElement.querySelectorAll('*').forEach(el => {
+                const fill = el.getAttribute('fill');
+                const stroke = el.getAttribute('stroke');
+                if (fill && !safeColors.includes(fill) && el.tagName.toLowerCase() !== 'text') {
+                    el.setAttribute('fill', defaultTrackColor);
+                }
+                if (stroke && !safeColors.includes(stroke)) {
+                    el.setAttribute('stroke', defaultTrackColor);
+                }
+            });
+
+            // Remove train numbers
+            svgElement.querySelectorAll('g[id^="A"]').forEach(g => {
+                const desc = g.querySelector('desc');
+                if (desc && desc.textContent.includes('ObjType="TDB"')) {
+                    const text = g.querySelector('text');
+                    if (text) text.textContent = '';
+                }
+            });
+
+            // Add interactivity
+            svgElement.querySelectorAll('g[id^="A"]').forEach(g => {
+                g.addEventListener('click', () => {
+                    alert('You clicked on element with ID: ' + g.id);
+                });
+            });
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ebiklon</title>
+    <!-- Pathfinding CSS -->
+    <link rel="stylesheet" href="ui/pathfinding-styles.css">
+    <style>
+        :root {
+            --tile-w: 960px;
+            --tile-h: 564px;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            overflow-x: auto; /* Single page scroll */
+            overflow-y: auto; /* Single page scroll */
+        }
+        #main-container {
+            display: grid;
+            grid-template-columns: repeat(10, var(--tile-w));
+            grid-template-rows: repeat(2, var(--tile-h));
+            gap: 0;
+            margin: 0;
+            padding: 0;
+            /* Expand to full canvas so only the page scrolls */
+            width: max-content;
+            height: max-content;
+        }
+        .diagram-cell {
+            width: var(--tile-w);
+            height: var(--tile-h);
+            overflow: hidden; /* prevent internal scroll */
+        }
+        /* Grid placement: Exact 10x2 layout as specified */
+        /* Top row: R51 R52S R53 R54 R55 R56 R57 R58 R59 R5A */
+        #diagram-R51 { grid-column: 1; grid-row: 1; }
+        #diagram-R52S { grid-column: 2; grid-row: 1; }
+        #diagram-R53 { grid-column: 3; grid-row: 1; }
+        #diagram-R54 { grid-column: 4; grid-row: 1; }
+        #diagram-R55 { grid-column: 5; grid-row: 1; }
+        #diagram-R56 { grid-column: 6; grid-row: 1; }
+        #diagram-R57 { grid-column: 7; grid-row: 1; }
+        #diagram-R58 { grid-column: 8; grid-row: 1; }
+        #diagram-R59 { grid-column: 9; grid-row: 1; }
+        #diagram-R5A { grid-column: 10; grid-row: 1; }
+        /* Bottom row: R5B R5CS R5D R5E R5F R5G R5H R5I R5J R5K */
+        #diagram-R5B { grid-column: 1; grid-row: 2; }
+        #diagram-R5CS { grid-column: 2; grid-row: 2; }
+        #diagram-R5D { grid-column: 3; grid-row: 2; }
+        #diagram-R5E { grid-column: 4; grid-row: 2; }
+        #diagram-R5F { grid-column: 5; grid-row: 2; }
+        #diagram-R5G { grid-column: 6; grid-row: 2; }
+        #diagram-R5H { grid-column: 7; grid-row: 2; }
+        #diagram-R5I { grid-column: 8; grid-row: 2; }
+        #diagram-R5J { grid-column: 9; grid-row: 2; }
+        #diagram-R5K { grid-column: 10; grid-row: 2; }
+        .diagram-frame {
+            border: none;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: block;
+            position: relative;
+        }
+        /* Popover styles (ensure shown above iframes) */
+        .popover {
+            position: absolute;
+            background: #ffffff;
+            color: #222222;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            padding: 8px 10px 10px 10px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            max-width: 320px;
+            z-index: 2147483647;
+        }
+        .popover.hidden {
+            display: none;
+        }
+        .popover .popover-close {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            line-height: 22px;
+            text-align: center;
+            border: 1px solid #d8d8d8;
+            border-radius: 6px;
+            background: #f5f5f5;
+            color: #333;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .popover .popover-close:hover {
+            background: #ececec;
+            border-color: #cfcfcf;
+            color: #111;
+        }
+
+        /* (grannanalys-stilar borttagna) */
+    </style>
+</head>
+<body>
+    
+
+    <div id="main-container">
+        <!-- Top row: R51 R52S R53 R54 R55 R56 R57 R58 R59 R5A -->
+        <div id="diagram-R51" class="diagram-cell"></div>
+        <div id="diagram-R52S" class="diagram-cell"></div>
+        <div id="diagram-R53" class="diagram-cell"></div>
+        <div id="diagram-R54" class="diagram-cell"></div>
+        <div id="diagram-R55" class="diagram-cell"></div>
+        <div id="diagram-R56" class="diagram-cell"></div>
+        <div id="diagram-R57" class="diagram-cell"></div>
+        <div id="diagram-R58" class="diagram-cell"></div>
+        <div id="diagram-R59" class="diagram-cell"></div>
+        <div id="diagram-R5A" class="diagram-cell"></div>
+        <!-- Bottom row: R5B R5CS R5D R5E R5F R5G R5H R5I R5J R5K -->
+        <div id="diagram-R5B" class="diagram-cell"></div>
+        <div id="diagram-R5CS" class="diagram-cell"></div>
+        <div id="diagram-R5D" class="diagram-cell"></div>
+        <div id="diagram-R5E" class="diagram-cell"></div>
+        <div id="diagram-R5F" class="diagram-cell"></div>
+        <div id="diagram-R5G" class="diagram-cell"></div>
+        <div id="diagram-R5H" class="diagram-cell"></div>
+        <div id="diagram-R5I" class="diagram-cell"></div>
+        <div id="diagram-R5J" class="diagram-cell"></div>
+        <div id="diagram-R5K" class="diagram-cell"></div>
+    </div>
+
+    
+    
+    <script>
+        const POPOVER_OFFSET = 8;
+        let currentSelection = null; // { iframe, element, diagramId }
+
+        function getOrCreatePopover() {
+            let pop = document.getElementById('global-popover');
+            if (!pop) {
+                pop = document.createElement('div');
+                pop.id = 'global-popover';
+                pop.className = 'popover hidden';
+                pop.addEventListener('mousedown', e => e.stopPropagation());
+                pop.addEventListener('click', e => e.stopPropagation());
+                document.body.appendChild(pop);
+            }
+            return pop;
+        }
+
+        function hidePopover() {
+            const pop = getOrCreatePopover();
+            pop.classList.add('hidden');
+            pop.innerHTML = '';
+        }
+
+        function formatElementDataNode(g, diagramId) {
+            const wrap = document.createElement('div');
+            const title = document.createElement('div');
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '6px';
+            const descEl = g.querySelector('desc');
+            const attrs = parseDescAttributes(descEl ? descEl.textContent || '' : '');
+            const objType = attrs.ObjType || '';
+            const objTypeSv = mapObjTypeToSwedish(objType);
+            const extNum = attrs.ExtNum || '';
+            title.textContent = `Diagram ${diagramId} • ${objTypeSv}${objType ? ` (${objType})` : ''}`;
+            
+            const textEl = g.querySelector('text');
+            const pre = document.createElement('pre');
+            pre.style.whiteSpace = 'pre-wrap';
+            pre.style.margin = '0';
+            pre.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+            pre.style.fontSize = '11px';
+            const lines = [];
+            if (extNum) {
+                lines.push(`ExtNum: ${extNum}`);
+            }
+            lines.push(`ID: ${g.id}`);
+            if (textEl && textEl.textContent && textEl.textContent.trim()) {
+                lines.push(`text: ${textEl.textContent.trim()}`);
+            }
+            if (descEl && descEl.textContent && descEl.textContent.trim()) {
+                lines.push(descEl.textContent.trim());
+            }
+            if (!lines.length) {
+                lines.push('(Inget metadata hittades)');
+            }
+            pre.textContent = lines.join('\n');
+            wrap.appendChild(title);
+            wrap.appendChild(pre);
+            
+            // Lägg till väg-knapp om tillämpligt
+            if (typeof addPathButtonToPopup === 'function') {
+                const objId = (textEl && textEl.textContent ? textEl.textContent.trim() : '') || extNum || '';
+                addPathButtonToPopup(wrap, objType, objId);
+            }
+            
+            return wrap;
+        }
+
+        function parseDescAttributes(descText) {
+            const out = {};
+            if (!descText) return out;
+            const regex = /(\w+)="([^"]*)"/g;
+            let m;
+            while ((m = regex.exec(descText)) !== null) {
+                out[m[1]] = m[2];
+            }
+            return out;
+        }
+
+        function mapObjTypeToSwedish(code) {
+            switch (code) {
+                case 'TCI': return 'Spårledning';
+                case 'CSI': return 'Huvuddvärgsignal';
+                case 'SSI': return 'Dvärgsignal';
+                case 'MSI': return 'Huvudsignal';
+                case 'SSY': return 'Slutpunkt';
+                case 'BST': return 'Stoppbock';
+                case 'POI': return 'Växel';
+                case 'DER': return 'Spårspärr';
+                case 'DCR': return 'engelsk växel';
+                case 'LBC': return 'Vägskyddsanläggning';
+                case 'SPO': return 'bro';
+                default: return code || 'Okänt objekt';
+            }
+        }
+
+        function positionPopoverForIframeTarget(iframe, targetEl) {
+            const pop = getOrCreatePopover();
+            const gRect = targetEl.getBoundingClientRect();
+            const iRect = iframe.getBoundingClientRect();
+            let left = window.scrollX + iRect.left + gRect.right + POPOVER_OFFSET;
+            let top = window.scrollY + iRect.top + gRect.top;
+            pop.style.left = left + 'px';
+            pop.style.top = top + 'px';
+            requestAnimationFrame(() => {
+                const pr = pop.getBoundingClientRect();
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                if (pr.right > vw - 8) {
+                    left = window.scrollX + iRect.left + gRect.left - pr.width - POPOVER_OFFSET;
+                }
+                if (left < window.scrollX + 8) left = window.scrollX + 8;
+                if (pr.bottom > vh - 8) {
+                    top = window.scrollY + iRect.top + gRect.bottom - pr.height;
+                }
+                if (top < window.scrollY + 8) top = window.scrollY + 8;
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+            });
+        }
+
+        function showPopoverNearIframeElement(iframe, targetEl, contentNode) {
+            const pop = getOrCreatePopover();
+            pop.innerHTML = '';
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'popover-close';
+            closeBtn.setAttribute('aria-label', 'Stäng');
+            closeBtn.textContent = '×';
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clearSelection();
+            });
+            pop.appendChild(closeBtn);
+            pop.appendChild(contentNode);
+            pop.classList.remove('hidden');
+            positionPopoverForIframeTarget(iframe, targetEl);
+        }
+
+        function clearSelection() {
+            if (currentSelection && currentSelection.element && currentSelection.element.isConnected) {
+                currentSelection.element.classList.remove('blinking');
+            }
+            currentSelection = null;
+            hidePopover();
+            
+            // Återställ pathfinding om inga vägar visas
+            if (typeof resetPathfindingOnClear === 'function') {
+                resetPathfindingOnClear();
+            }
+        }
+
+        function injectFrameStyles(doc) {
+            try {
+                const style = doc.createElement('style');
+                style.textContent = `g[id^="A"]{cursor:pointer;}@keyframes blink{0%,100%{opacity:1}50%{opacity:0.6}} @keyframes pulseStroke{0%,100%{stroke-width:3px}50%{stroke-width:12px}} g.blinking, g.blinking *{animation:blink 1.2s ease-in-out infinite;} g.blinking path, g.blinking line, g.blinking rect, g.blinking circle, g.blinking ellipse, g.blinking polyline, g.blinking polygon{stroke:#ffcc00 !important; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; animation:blink 1.2s ease-in-out infinite, pulseStroke 1.2s ease-in-out infinite; filter: drop-shadow(0 0 2px #ffcc00) drop-shadow(0 0 8px rgba(255,204,0,0.9)) drop-shadow(0 0 16px rgba(255,204,0,0.6)); fill: rgba(255,245,157,0.25);}`;
+                (doc.head || doc.documentElement).appendChild(style);
+            } catch (e) {
+                console.error('Failed to inject frame styles:', e);
+            }
+        }
+        const diagramConfig = [
+            // Top row: R51 R52S R53 R54 R55 R56 R57 R58 R59 R5A
+            { id: 'R51', parent: 'diagram-R51' },
+            { id: 'R52S', parent: 'diagram-R52S' },
+            { id: 'R53', parent: 'diagram-R53' },
+            { id: 'R54', parent: 'diagram-R54' },
+            { id: 'R55', parent: 'diagram-R55' },
+            { id: 'R56', parent: 'diagram-R56' },
+            { id: 'R57', parent: 'diagram-R57' },
+            { id: 'R58', parent: 'diagram-R58' },
+            { id: 'R59', parent: 'diagram-R59' },
+            { id: 'R5A', parent: 'diagram-R5A' },
+            // Bottom row: R5B R5CS R5D R5E R5F R5G R5H R5I R5J R5K
+            { id: 'R5B', parent: 'diagram-R5B' },
+            { id: 'R5CS', parent: 'diagram-R5CS' },
+            { id: 'R5D', parent: 'diagram-R5D' },
+            { id: 'R5E', parent: 'diagram-R5E' },
+            { id: 'R5F', parent: 'diagram-R5F' },
+            { id: 'R5G', parent: 'diagram-R5G' },
+            { id: 'R5H', parent: 'diagram-R5H' },
+            { id: 'R5I', parent: 'diagram-R5I' },
+            { id: 'R5J', parent: 'diagram-R5J' },
+            { id: 'R5K', parent: 'diagram-R5K' }
+        ];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            diagramConfig.forEach(config => {
+                const container = document.getElementById(config.parent);
+                // Prevent duplicate iframes
+                if (container.querySelector('iframe')) {
+                    return;
+                }
+                const iframe = document.createElement('iframe');
+                iframe.src = `diagrams/${config.id}.html`;
+                iframe.className = 'diagram-frame';
+                // Avoid internal scrollbars and scroll chaining inside iframes
+                iframe.setAttribute('scrolling', 'no'); // legacy but widely supported
+                
+                iframe.onload = () => processSVGInFrame(iframe, config.id);
+                
+                container.appendChild(iframe);
+            });
+        });
+
+        function processSVGInFrame(iframe, diagramId) {
+            try {
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                // Ensure the iframe document itself cannot scroll
+                if (doc && doc.documentElement && doc.body) {
+                    doc.documentElement.style.margin = '0';
+                    doc.documentElement.style.padding = '0';
+                    doc.documentElement.style.overflow = 'hidden';
+                    doc.body.style.margin = '0';
+                    doc.body.style.padding = '0';
+                    doc.body.style.overflow = 'hidden';
+                    doc.body.style.width = '100%';
+                    doc.body.style.height = '100%';
+                }
+                injectFrameStyles(doc);
+                const svgElement = doc.querySelector('svg');
+                if (svgElement) {
+                    // Remove background rectangle to make diagrams seamless
+                    const backgroundRect = svgElement.querySelector('rect[fill="rgb(176,175,169)"]');
+                    if (backgroundRect) {
+                        backgroundRect.remove();
+                    }
+                    // Force SVG to fill the tile exactly
+                    svgElement.setAttribute('preserveAspectRatio', 'none');
+                    svgElement.style.width = '100%';
+                    svgElement.style.height = '100%';
+                    svgElement.style.display = 'block';
+                    cleanSVG(svgElement);
+                    addInteractivity(svgElement, diagramId, iframe);
+                }
+            } catch (e) {
+                console.error(`Error processing SVG in ${diagramId}:`, e);
+            }
+        }
+
+        function cleanSVG(svgElement) {
+            const defaultTrackColor = 'rgb(130,150,150)';
+            const safeColors = [
+                defaultTrackColor, 'rgb(176,175,169)', 'rgb(0,0,0)', 'rgb(55,60,60)',
+                'rgb(120,135,135)', 'none', 'white', '#f1c40f', '#0088ff', '#0066dd', 'red'
+            ];
+
+            svgElement.querySelectorAll('*').forEach(el => {
+                const fill = el.getAttribute('fill');
+                const stroke = el.getAttribute('stroke');
+                if (fill && !safeColors.includes(fill) && el.tagName.toLowerCase() !== 'text') {
+                    el.setAttribute('fill', defaultTrackColor);
+                }
+                if (stroke && !safeColors.includes(stroke)) {
+                    el.setAttribute('stroke', defaultTrackColor);
+                }
+            });
+
+            svgElement.querySelectorAll('g[id^="A"]').forEach(g => {
+                const desc = g.querySelector('desc');
+                if (desc && desc.textContent.includes('ObjType="TDB"')) {
+                    const text = g.querySelector('text');
+                    if (text) text.textContent = '';
+                }
+            });
+        }
+
+        function addInteractivity(svgElement, diagramId, iframe) {
+            const doc = svgElement.ownerDocument;
+            svgElement.querySelectorAll('g[id^="A"]').forEach(g => {
+                g.style.cursor = 'pointer';
+                g.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const parentG = findTopObjectGroup(g);
+                    if (!parentG) return;
+                    
+                    // Stäng tidigare popup men behåll pathfinding-sekvens
+                    if (currentSelection && currentSelection.element !== parentG) {
+                        // Ta bara bort blinking och dölj popup, återställ INTE pathfinding
+                        if (currentSelection.element && currentSelection.element.isConnected) {
+                            currentSelection.element.classList.remove('blinking');
+                        }
+                        hidePopover();
+                    }
+                    parentG.classList.add('blinking');
+                    currentSelection = { iframe, element: parentG, diagramId };
+                    
+                    // Extrahera objekt-info för pathfinding
+                    const descEl = parentG.querySelector('desc');
+                    const attrs = parseDescAttributes(descEl ? descEl.textContent || '' : '');
+                    const objType = attrs.ObjType || '';
+                    const textEl = parentG.querySelector('text');
+                    const objId = (textEl && textEl.textContent ? textEl.textContent.trim() : '') || attrs.ExtNum || '';
+                    
+                    // Hantera med pathfinding (lägg till i sekvens)
+                    if (typeof handlePathfindingClick === 'function' && objId) {
+                        handlePathfindingClick(objType, objId, iframe, parentG);
+                    }
+                    
+                    // Skapa popup-innehåll EFTER pathfinding-hantering
+                    const content = formatElementDataNode(parentG, diagramId);
+                    showPopoverNearIframeElement(iframe, parentG, content);
+                });
+            });
+            // Background click inside iframe clears selection
+            doc.addEventListener('click', (ev) => {
+                const t = ev.target;
+                if (!t.closest || !t.closest('g[id^="A"]')) {
+                    if (currentSelection && currentSelection.iframe === iframe) {
+                        clearSelection();
+                    }
+                }
+            });
+        }
+
+        function findTopObjectGroup(el) {
+            let node = el;
+            let candidate = null;
+            while (node && node.tagName && node.tagName.toLowerCase() !== 'svg') {
+                if (node.tagName.toLowerCase() === 'g' && /^A\d+$/.test(node.id || '')) {
+                    candidate = node;
+                }
+                node = node.parentElement;
+            }
+            return candidate;
+        }
+
+        // Click anywhere on the parent document hides the popover
+        document.addEventListener('click', () => {
+            clearSelection();
+        });
+
+        // Keep popover positioned on scroll/resize
+        window.addEventListener('scroll', () => {
+            if (currentSelection) {
+                positionPopoverForIframeTarget(currentSelection.iframe, currentSelection.element);
+            }
+        }, { passive: true });
+        window.addEventListener('resize', () => {
+            if (currentSelection) {
+                positionPopoverForIframeTarget(currentSelection.iframe, currentSelection.element);
+            }
+        });
+
+        // (grannanalysfunktioner borttagna)
+    </script>
+    
+    <!-- Pathfinding modules -->
+    <script src="ui/pathfinding-ui.js"></script>
+    <script type="module" src="ui/pathfinding-integration.js"></script>
+</body>
+</html>
+

@@ -25,7 +25,7 @@ async function initializePathfinding() {
       fetch('./EbiklonGeodata/stoppbock.geojson').then(r => r.json()),
       fetch('./EbiklonGeodata/sparvaxel.geojson').then(r => r.json()),
       fetch('./EbiklonGeodata/sparkors.geojson').then(r => r.json()),
-      fetch('./EbiklonGeodata/langdmatning.geojson').then(r => r.json())
+      fetch('./EbiklonGeodata/Langdmatning.geojson').then(r => r.json())
     ]);
 
     // Bygg graf (behöver importera från dist/)

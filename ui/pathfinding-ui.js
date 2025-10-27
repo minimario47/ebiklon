@@ -105,7 +105,7 @@ class PathfindingUI {
     try {
       // Hitta vägar (via stöds inte än)
       if (via) {
-        alert('Via-punkter stöds inte än. Välj bara start och slut.');
+        console.log('Via-punkter stöds inte än. Välj bara start och slut.');
         return;
       }
       
@@ -130,27 +130,91 @@ class PathfindingUI {
   }
 
   /**
-   * Visa resultat i alert (enkel version)
+   * Visa resultat via visualizePathsInSVG (använder nya popup-systemet)
    */
   showPathResults() {
-    let message = `Hittade ${this.foundPaths.length} väg(ar)!\n\n`;
-    
-    this.foundPaths.forEach((path, index) => {
-      const signals = path.crossedObjects.filter(o => o.type === 'signal');
-      const pois = path.crossedObjects.filter(o => o.type === 'poi');
-      const dcrs = path.crossedObjects.filter(o => o.type === 'dcr');
+    // Använd det nya popup-systemet istället för alert
+    if (typeof window.visualizePathsInSVG === 'function') {
+      window.visualizePathsInSVG(this.foundPaths);
+    } else if (typeof visualizePathsInSVG === 'function') {
+      visualizePathsInSVG(this.foundPaths);
+    } else {
+      console.log('visualizePathsInSVG inte tillgänglig, visar i console');
+      console.log('Hittade vägar:', this.foundPaths);
       
-      message += `Väg ${index + 1}:\n`;
-      message += `  Längd: ${Math.round(path.totalLength)}m\n`;
-      message += `  Signaler: ${signals.map(s => s.id).join(' → ')}\n`;
-      if (pois.length > 0) message += `  Växlar: ${pois.map(p => p.id).join(', ')}\n`;
-      if (dcrs.length > 0) message += `  DCR: ${dcrs.map(d => d.id).join(', ')}\n`;
-      message += '\n';
-    });
+      // Fallback: visa enkel popup med samma stil som element-popups
+      this.showSimplePathPopup();
+    }
+  }
+  
+  /**
+   * Fallback: visa enkel popup med samma stil som element-popups
+   */
+  showSimplePathPopup() {
+    if (!this.foundPaths || this.foundPaths.length === 0) return;
     
-    alert(message);
+    const path = this.foundPaths[0];
+    const signals = path.crossedObjects.filter(o => o.type === 'signal');
+    const switches = path.crossedObjects.filter(o => o.type === 'poi');
+    const dcrs = path.crossedObjects.filter(o => o.type === 'dcr');
     
-    // Låt markering vara kvar tills användaren klickar X (rensa)
+    // Skapa popup-innehåll i samma stil som element-popups
+    const contentNode = document.createElement('div');
+    
+    // Huvudrubrik
+    const header = document.createElement('div');
+    header.style.cssText = 'font-weight: 600; margin-bottom: 8px; color: #333;';
+    header.textContent = `Ebiklon - Hittade ${this.foundPaths.length} väg(ar)!`;
+    contentNode.appendChild(header);
+    
+    // Väginformation
+    const pathInfo = document.createElement('div');
+    pathInfo.style.cssText = 'margin-bottom: 8px;';
+    pathInfo.innerHTML = `
+      <div style="font-weight: 500; color: #555; margin-bottom: 4px;">Väg 1:</div>
+      <div style="color: #666; font-size: 11px; margin-bottom: 2px;">Längd: ${Math.round(path.totalLength)}m</div>
+      <div style="color: #666; font-size: 11px;">Element: ${path.crossedObjects.length} st</div>
+    `;
+    contentNode.appendChild(pathInfo);
+    
+    // Signaler
+    if (signals.length > 0) {
+      const signalsDiv = document.createElement('div');
+      signalsDiv.style.cssText = 'margin-bottom: 6px;';
+      signalsDiv.innerHTML = `
+        <div style="font-weight: 500; color: #555; font-size: 11px; margin-bottom: 2px;">Signaler:</div>
+        <div style="color: #2196F3; font-family: monospace; font-size: 10px; background: #f5f5f5; padding: 4px; border-radius: 3px; word-break: break-word;">
+          ${signals.map(s => s.id).join(' → ')}
+        </div>
+      `;
+      contentNode.appendChild(signalsDiv);
+    }
+    
+    // Visa popup nära första valda objekt
+    const firstObj = this.selectedObjects[0];
+    if (firstObj && firstObj.iframe && firstObj.element && typeof showPopoverNearIframeElement === 'function') {
+      showPopoverNearIframeElement(firstObj.iframe, firstObj.element, contentNode);
+    } else if (typeof getOrCreatePopover === 'function') {
+      // Fallback: visa i mitten av skärmen
+      const pop = getOrCreatePopover();
+      pop.innerHTML = '';
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'popover-close';
+      closeBtn.setAttribute('aria-label', 'Stäng');
+      closeBtn.textContent = '×';
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof hidePopover === 'function') hidePopover();
+      });
+      pop.appendChild(closeBtn);
+      pop.appendChild(contentNode);
+      pop.classList.remove('hidden');
+      pop.style.left = '50%';
+      pop.style.top = '50%';
+      pop.style.transform = 'translate(-50%, -50%)';
+    }
   }
 
   // SVG-visualisering kommer senare

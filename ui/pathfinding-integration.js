@@ -237,7 +237,7 @@ function showPathfindingResultsPopup(paths) {
     // Visa "inga resultat"-meddelande i element-stil popup
     const contentNode = document.createElement('div');
     contentNode.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 8px; color: #333;">Vägsökning</div>
+      <div style="font-weight: 600; margin-bottom: 8px; color: #333;">Ebiklon</div>
       <div style="color: #666; font-size: 11px; margin-bottom: 8px;">Inga vägar hittades</div>
       <div style="color: #999; font-size: 10px; line-height: 1.3;">
         Det gick inte att hitta en väg mellan de valda objekten. 
@@ -284,7 +284,7 @@ function showPathfindingResultsPopup(paths) {
   // Huvudrubrik
   const header = document.createElement('div');
   header.style.cssText = 'font-weight: 600; margin-bottom: 8px; color: #333;';
-  header.textContent = `Hittade ${paths.length} väg(ar)!`;
+  header.textContent = `Ebiklon - Hittade ${paths.length} väg(ar)!`;
   contentNode.appendChild(header);
   
   // Väginformation
@@ -518,7 +518,7 @@ function exportPathData() {
       fullPath: path.crossedObjects.map(obj => ({ id: obj.id, type: obj.type }))
     },
     metadata: {
-      source: 'Ebiklon Vägsökning',
+      source: 'Ebiklon',
       version: '1.0'
     }
   };
@@ -530,7 +530,7 @@ function exportPathData() {
   
   const link = document.createElement('a');
   link.href = url;
-  link.download = `vägsökning_${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `ebiklon_${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -562,6 +562,9 @@ function visualizePathsInSVG(paths) {
   console.log('Hittade vägar:', paths);
   showPathfindingResultsPopup(paths);
 }
+
+// Exportera omedelbart för att undvika timing-problem
+window.visualizePathsInSVG = visualizePathsInSVG;
 
 // Initiera vid sidladdning
 if (document.readyState === 'loading') {

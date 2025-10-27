@@ -14,9 +14,10 @@ let geodataLoaded = false;
  */
 async function initializePathfinding() {
   try {
-    console.log('Laddar geodata för vägsökning...');
+    console.log('🚀 Startar Ebiklon pathfinding-system...');
     
     // Ladda geodata (inkl. längdmätningsdata)
+    console.log('📡 Laddar geodata från server...');
     const [netLinks, netNodes, signalsAtc, signalsEjAtc, stoppbock, vaxlar, dcr, lengthMeasurements] = await Promise.all([
       fetch('./EbiklonGeodata/net_jvg_link.geojson').then(r => r.json()),
       fetch('./EbiklonGeodata/net_jvg_node.geojson').then(r => r.json()),
@@ -28,10 +29,23 @@ async function initializePathfinding() {
       fetch('./EbiklonGeodata/Langdmatning.geojson').then(r => r.json())
     ]);
 
+    console.log('✅ Geodata laddad:', {
+      links: netLinks?.features?.length || 0,
+      nodes: netNodes?.features?.length || 0,
+      signalsAtc: signalsAtc?.features?.length || 0,
+      signalsEjAtc: signalsEjAtc?.features?.length || 0,
+      stoppbock: stoppbock?.features?.length || 0,
+      vaxlar: vaxlar?.features?.length || 0,
+      dcr: dcr?.features?.length || 0,
+      lengthMeasurements: lengthMeasurements?.features?.length || 0
+    });
+
     // Bygg graf (behöver importera från dist/)
+    console.log('🔧 Importerar pathfinding-moduler...');
     const { GraphBuilder } = await import('../dist/geo/graphBuilder.js');
     const { PathEngine } = await import('../dist/geo/pathEngine.js');
 
+    console.log('🏗️ Bygger graf från geodata...');
     graphBuilder = new GraphBuilder();
     
     // Kombinera signaler
@@ -51,6 +65,7 @@ async function initializePathfinding() {
       lengthMeasurements
     );
 
+    console.log('🎯 Skapar pathfinding-engine...');
     pathEngine = new PathEngine(graphBuilder);
     
     // Skapa UI (ingen karta i detta läge, vi använder SVG-diagram)
@@ -60,7 +75,7 @@ async function initializePathfinding() {
     window.pathfindingUI = pathfindingUI;
     
     geodataLoaded = true;
-    console.log('✅ Geodata laddad och pathfinding redo!');
+    console.log('🎉 Ebiklon pathfinding-system redo!');
     
   } catch (error) {
     console.error('❌ Fel vid laddning av geodata:', error);

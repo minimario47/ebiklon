@@ -106,11 +106,196 @@
             color: #111;
         }
 
+        /* Log Panel Styles */
+        .log-panel {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 350px;
+            height: 100vh;
+            background: #ffffff;
+            border-right: 2px solid #e0e0e0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .log-panel.hidden {
+            transform: translateX(-100%);
+        }
+
+        .log-header {
+            background: #f5f5f5;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .log-toggle {
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .log-toggle:hover {
+            background: #1976D2;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            background: #fafafa;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 4px 8px;
+            border-radius: 3px;
+            word-wrap: break-word;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .log-entry.info {
+            background: #e3f2fd;
+            color: #1976D2;
+            border-left: 3px solid #2196F3;
+        }
+
+        .log-entry.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .log-entry.warning {
+            background: #fff3e0;
+            color: #f57c00;
+            border-left: 3px solid #FF9800;
+        }
+
+        .log-entry.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 3px solid #f44336;
+        }
+
+        .log-entry.debug {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            border-left: 3px solid #9c27b0;
+        }
+
+        .log-controls {
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-btn {
+            padding: 6px 12px;
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .log-btn:hover {
+            background: #e0e0e0;
+            border-color: #bbb;
+        }
+
+        .log-btn.active {
+            background: #2196F3;
+            color: white;
+            border-color: #1976D2;
+        }
+
+        .log-timestamp {
+            color: #666;
+            font-size: 10px;
+            margin-right: 8px;
+        }
+
+        /* Adjust main container when log panel is visible */
+        body.log-panel-open #main-container {
+            margin-left: 350px;
+        }
+
+        /* Log panel toggle button (when hidden) */
+        .log-panel-toggle {
+            position: fixed;
+            left: 8px;
+            top: 8px;
+            width: 40px;
+            height: 40px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 1001;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        .log-panel-toggle:hover {
+            background: #1976D2;
+            transform: scale(1.1);
+        }
+
         /* (grannanalys-stilar borttagna) */
     </style>
 </head>
 <body>
     
+
+    <!-- Log Panel Toggle Button -->
+    <button id="log-panel-toggle" class="log-panel-toggle">📋</button>
+
+    <!-- Log Panel -->
+    <div id="log-panel" class="log-panel hidden">
+        <div class="log-header">
+            <h3>Ebiklon Log</h3>
+            <button id="log-toggle" class="log-toggle">−</button>
+        </div>
+        <div id="log-content" class="log-content">
+            <div class="log-entry info">System startar...</div>
+        </div>
+        <div class="log-controls">
+            <button id="log-clear" class="log-btn">Rensa</button>
+            <button id="log-auto-scroll" class="log-btn active">Auto-scroll</button>
+        </div>
+    </div>
 
     <div id="main-container">
         <!-- Top row: R51 R52S R53 R54 R55 R56 R57 R58 R59 R5A -->
@@ -142,6 +327,111 @@
     <script>
         const POPOVER_OFFSET = 8;
         let currentSelection = null; // { iframe, element, diagramId }
+
+        // Log System
+        class LogSystem {
+            constructor() {
+                this.logPanel = document.getElementById('log-panel');
+                this.logContent = document.getElementById('log-content');
+                this.logToggle = document.getElementById('log-toggle');
+                this.logPanelToggle = document.getElementById('log-panel-toggle');
+                this.logClear = document.getElementById('log-clear');
+                this.logAutoScroll = document.getElementById('log-auto-scroll');
+                this.autoScroll = true;
+                this.maxEntries = 1000;
+                
+                this.setupEventListeners();
+                this.interceptConsole();
+                this.log('info', 'Log system initialiserat');
+            }
+
+            setupEventListeners() {
+                this.logToggle.addEventListener('click', () => this.togglePanel());
+                this.logPanelToggle.addEventListener('click', () => this.showPanel());
+                this.logClear.addEventListener('click', () => this.clear());
+                this.logAutoScroll.addEventListener('click', () => this.toggleAutoScroll());
+            }
+
+            interceptConsole() {
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                const originalInfo = console.info;
+
+                console.log = (...args) => {
+                    originalLog.apply(console, args);
+                    this.log('info', args.join(' '));
+                };
+
+                console.error = (...args) => {
+                    originalError.apply(console, args);
+                    this.log('error', args.join(' '));
+                };
+
+                console.warn = (...args) => {
+                    originalWarn.apply(console, args);
+                    this.log('warning', args.join(' '));
+                };
+
+                console.info = (...args) => {
+                    originalInfo.apply(console, args);
+                    this.log('info', args.join(' '));
+                };
+            }
+
+            log(type, message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'log-timestamp';
+                timeSpan.textContent = timestamp;
+                
+                const messageSpan = document.createElement('span');
+                messageSpan.textContent = message;
+                
+                entry.appendChild(timeSpan);
+                entry.appendChild(messageSpan);
+                
+                this.logContent.appendChild(entry);
+                
+                // Limit number of entries
+                while (this.logContent.children.length > this.maxEntries) {
+                    this.logContent.removeChild(this.logContent.firstChild);
+                }
+                
+                if (this.autoScroll) {
+                    this.logContent.scrollTop = this.logContent.scrollHeight;
+                }
+            }
+
+            togglePanel() {
+                this.logPanel.classList.toggle('hidden');
+                document.body.classList.toggle('log-panel-open');
+                this.logToggle.textContent = this.logPanel.classList.contains('hidden') ? '+' : '−';
+            }
+
+            showPanel() {
+                this.logPanel.classList.remove('hidden');
+                document.body.classList.add('log-panel-open');
+                this.logToggle.textContent = '−';
+            }
+
+            clear() {
+                this.logContent.innerHTML = '';
+                this.log('info', 'Log rensad');
+            }
+
+            toggleAutoScroll() {
+                this.autoScroll = !this.autoScroll;
+                this.logAutoScroll.classList.toggle('active', this.autoScroll);
+                this.log('info', `Auto-scroll ${this.autoScroll ? 'aktiverat' : 'inaktiverat'}`);
+            }
+        }
+
+        // Initialize log system
+        const logSystem = new LogSystem();
 
         function getOrCreatePopover() {
             let pop = document.getElementById('global-popover');

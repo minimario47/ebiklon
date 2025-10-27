@@ -65,17 +65,19 @@ class PathfindingUI {
     // Skapa "Väg"-knapp
     const button = document.createElement('button');
     button.className = 'path-search-btn';
-    button.textContent = '🛤️ Väg';
+    button.textContent = 'Sök väg';
     button.style.cssText = `
       margin-top: 10px;
-      padding: 8px 16px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
+      padding: 10px 16px;
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 500;
       width: 100%;
+      font-size: 13px;
+      transition: all 0.2s;
     `;
 
     button.addEventListener('click', () => this.executePathSearch());
@@ -90,7 +92,7 @@ class PathfindingUI {
    */
   async executePathSearch() {
     if (this.selectedObjects.length < 2) {
-      alert('Välj minst 2 objekt för vägsökning');
+      console.log('Välj minst 2 objekt för vägsökning');
       return;
     }
 
@@ -110,7 +112,7 @@ class PathfindingUI {
       this.foundPaths = this.pathEngine.findPaths(start.id, end.id);
 
       if (this.foundPaths.length === 0) {
-        alert('Inga vägar hittades mellan de valda objekten');
+        console.log('Inga vägar hittades mellan de valda objekten');
         return;
       }
 
@@ -121,10 +123,10 @@ class PathfindingUI {
       // Visa enkel sammanfattning
       this.showPathResults();
 
-    } catch (error) {
-      console.error('Fel vid vägsökning:', error);
-      alert('Ett fel uppstod vid vägsökning: ' + error.message);
-    }
+      } catch (error) {
+        console.error('Fel vid vägsökning:', error);
+        console.log('Ett fel uppstod vid vägsökning: ' + error.message);
+      }
   }
 
   /**

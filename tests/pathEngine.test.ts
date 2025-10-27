@@ -99,6 +99,45 @@ describe('PathEngine – Vägsökning med riktning och växelfilter', () => {
   });
 });
 
+describe('PathEngine – nya riktade testfall', () => {
+  let graph: GraphBuilder;
+  let engine: PathEngine;
+
+  beforeAll(() => {
+    graph = new GraphBuilder();
+    // Här bör verklig geodata laddas in i projektets testmiljö
+    // graph.buildFromGeoJSON(netLinks, netNodes, allSignals, stoppbock, vaxlar, dcr);
+    engine = new PathEngine(graph);
+  });
+
+  test('722 → 732: endast direkt väg, inga växlar, korrekt signalordning', () => {
+    const paths = engine.findPaths('722','732');
+    // Minst en väg (direkt)
+    expect(paths.length).toBeGreaterThanOrEqual(1);
+    const p = paths.sort((a,b)=>a.totalLength-b.totalLength)[0];
+    const signals = p.crossedObjects.filter(o=>o.type==='signal').map(s=>s.id);
+    const pois = p.crossedObjects.filter(o=>o.type==='poi');
+    expect(signals[0]).toBe('722');
+    expect(signals.includes('732')).toBe(true);
+    expect(pois.length).toBe(0);
+    // Rimlig längd (ska vara kort, t.ex. ~66m om längdmätning används)
+    expect(p.totalLength).toBeLessThan(300);
+  });
+
+  test('642 → 662: två alternativa vägar via växel 624 (höger/vänster)', () => {
+    const paths = engine.findPaths('642','662');
+    expect(paths.length).toBeGreaterThanOrEqual(2);
+    const sorted = paths.sort((a,b)=>a.totalLength-b.totalLength);
+    // Båda vägar ska börja med 642 och sluta med 662 i signal-listan
+    for (const p of sorted.slice(0,2)) {
+      const sigs = p.crossedObjects.filter(o=>o.type==='signal').map(s=>s.id);
+      expect(sigs[0]).toBe('642');
+      expect(sigs.includes('662')).toBe(true);
+      expect(p.totalLength).toBeLessThan(5000);
+    }
+  });
+});
+
 /**
  * Interaktiv testfunktion – skriv in två signaler och se alla vägar
  */

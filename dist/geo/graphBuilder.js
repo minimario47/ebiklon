@@ -13,8 +13,7 @@ export class GraphBuilder {
             maxNodes: 2000,
             maxPathLengthMeters: 10000,
             kPathsPerPair: 10,
-            maxTurnDegAtSwitch: 120, // Mjukare vid växlar
-            maxTurnDegGeneral: 45, // Mjukare generellt
+            maxSearchRadiusMeters: 100, // 500m default radius limit
         };
     }
     buildFromGeoJSON(netLinks, netNodes, signals, stoppbock, vaxlar, dcr, lengthMeasurements) {
@@ -187,6 +186,12 @@ export class GraphBuilder {
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+    /**
+     * Calculate bird's eye distance between two points (ignoring Z coordinate)
+     */
+    getBirdEyeDistance(a, b) {
+        return this.dist(a, b);
     }
     normalizeNummer(n) {
         if (!n)

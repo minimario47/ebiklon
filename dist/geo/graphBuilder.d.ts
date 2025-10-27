@@ -1,4 +1,4 @@
-import type { Link, Node, Edge, SnappedObject, Config } from './types.js';
+import type { Link, Node, Edge, SnappedObject, Config, Point3D } from './types.js';
 export declare class GraphBuilder {
     private nodes;
     private edges;
@@ -13,6 +13,10 @@ export declare class GraphBuilder {
     private snapToEdge;
     private projectPointToSegment;
     private dist;
+    /**
+     * Calculate bird's eye distance between two points (ignoring Z coordinate)
+     */
+    getBirdEyeDistance(a: Point3D, b: Point3D): number;
     private normalizeNummer;
     getNodes(): Map<string, Node>;
     getEdges(): Edge[];

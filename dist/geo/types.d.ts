@@ -70,7 +70,6 @@ export interface Config {
     maxNodes: number;
     maxPathLengthMeters: number;
     kPathsPerPair: number;
-    maxTurnDegAtSwitch?: number;
-    maxTurnDegGeneral?: number;
+    maxSearchRadiusMeters: number;
 }
 //# sourceMappingURL=types.d.ts.map

@@ -86,5 +86,6 @@ export interface Config {
   maxNodes: number;
   maxPathLengthMeters: number;
   kPathsPerPair: number;
+  maxSearchRadiusMeters: number;  // Bird's eye radius limit
 }
 

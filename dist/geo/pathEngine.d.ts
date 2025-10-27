@@ -18,15 +18,17 @@ export declare class PathEngine {
     private isAtTarget;
     private getNeighbors;
     private deflectionAngle;
-    private isSwitchNode;
-    private firstSignalParityOnEdge;
     private collectCrossedObjects;
     private mergePaths;
     private getObjectsOnEdge;
     private logNearbyObjects;
-    private dijkstraSearch;
-    private isAtTargetNode;
-    private dfsSearch;
-    private dfsSimple;
+    /**
+     * Validera att alla objekt i vägen är inom 1.5x direktavstånd från start
+     */
+    private validatePathSequence;
+    /**
+     * Print detailed path information for debugging
+     */
+    private printDetailedPath;
 }
 //# sourceMappingURL=pathEngine.d.ts.map

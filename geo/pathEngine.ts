@@ -37,8 +37,15 @@ export class PathEngine {
   private searchPaths(start: SnappedObject, end: SnappedObject): Path[] {
     const cfg = this.graph.getConfig();
     const allPaths: Path[] = [];
+    const pathSignatures = new Set<string>(); // För att undvika duplicerade vägar
 
     console.log(`🔍 Söker väg: ${start.id} → ${end.id}`);
+    
+    // Beräkna bird's eye avstånd för radius-kontroll
+    const directDistance = this.graph.getBirdEyeDistance(start.coord, end.coord);
+    const maxRadius = Math.max(cfg.maxSearchRadiusMeters, directDistance * 1.5); // Minst 1.5x direktavstånd
+    
+    console.log(`📏 Direktavstånd: ${directDistance.toFixed(0)}m, max sökradius: ${maxRadius.toFixed(0)}m`);
     
     // SPECIALFALL: Om start och mål är på samma kant, lägg till den direkta vägen
     if (start.edgeId === end.edgeId) {
@@ -51,13 +58,17 @@ export class PathEngine {
         );
         const crossed = this.collectCrossedObjects([edge], start, end);
         
-        console.log(`✅ Hittade direkt väg (samma kant): ${length.toFixed(0)}m`);
-        
-        allPaths.push({
-          edges: [edge],
-          totalLength: length,
-          crossedObjects: crossed,
-        });
+        // Skapa signatur för direktvägen
+        const pathSignature = `${edge.fromNode}→${edge.toNode}:${edge.link.id}`;
+        if (!pathSignatures.has(pathSignature)) {
+          console.log(`✅ Hittade direkt väg (samma kant): ${length.toFixed(0)}m`);
+          pathSignatures.add(pathSignature);
+          allPaths.push({
+            edges: [edge],
+            totalLength: length,
+            crossedObjects: crossed,
+          });
+        }
       }
     }
     
@@ -102,7 +113,7 @@ export class PathEngine {
           ? this.graph.getCorrectedSegmentLength(startEdge.link, 0, start.distanceAlongEdge)
           : this.graph.getCorrectedSegmentLength(startEdge.link, start.distanceAlongEdge, 1);
         
-        this.dfs(edge, end, start, [startEdge], new Set([nodeOid]), startEdgePartialLength, allPaths, cfg, 0);
+        this.dfs(edge, end, start, [startEdge], new Set([nodeOid]), startEdgePartialLength, allPaths, cfg, 0, start.coord, end.coord, maxRadius, directDistance, pathSignatures);
       }
       
       // if (validCount > 3) {
@@ -125,21 +136,39 @@ export class PathEngine {
     target: SnappedObject,
     startObj: SnappedObject,
     pathSoFar: Edge[],
-    visitedNodes: Set<string>,
+    visitedState: Set<string>,
     lengthSoFar: number,
     results: Path[],
     cfg: Config,
-    depth: number
+    depth: number,
+    startCoord: Point3D,
+    endCoord: Point3D,
+    maxRadius: number,
+    directDistance: number,
+    pathSignatures: Set<string>
   ) {
     // Pruning: Stoppa om vi har tillräckligt med vägar eller om vägen är för lång
     if (results.length >= cfg.kPathsPerPair) return;
     if (lengthSoFar > cfg.maxPathLengthMeters) return;
     if (pathSoFar.length > cfg.maxNodes) return;
-    if (visitedNodes.has(current.toNode)) return; // cykel
+    
+    // Radius-kontroll: Stoppa om vi är för långt från start- eller målpunkt
+    const currentNode = this.graph.getNodes().get(current.toNode);
+    if (currentNode) {
+      const distFromStart = this.graph.getBirdEyeDistance(startCoord, currentNode.coord);
+      const distFromEnd = this.graph.getBirdEyeDistance(endCoord, currentNode.coord);
+      if (distFromStart > maxRadius || distFromEnd > maxRadius) {
+        return; // För långt bort
+      }
+    }
+    
+    // Viktigt: markera besök med riktning (arrived via edge)
+    const arriveKey = `${current.fromNode}->${current.toNode}`;
+    if (visitedState.has(arriveKey)) return; // cykel i samma riktning
 
     const newPath = [...pathSoFar, current];
-    const newVisited = new Set(visitedNodes);
-    newVisited.add(current.fromNode);
+    const newVisited = new Set(visitedState);
+    newVisited.add(arriveKey);
     
     const isOnTargetEdge = this.isAtTarget(current, target);
     
@@ -170,10 +199,28 @@ export class PathEngine {
       const crossed = this.collectCrossedObjects(newPath, startObj, target);
       const signals = crossed.filter(o => o.type === 'signal');
       
+      // Validera att alla objekt i vägen är inom 1.5x direktavstånd från start
+      if (!this.validatePathSequence(crossed, startCoord, directDistance)) {
+        console.log(`  ❌ Väg avvisad: objekt för långt från start`);
+        return;
+      }
+      
+      // Skapa en unik signatur för vägen baserat på kanter
+      const pathSignature = newPath.map(e => `${e.fromNode}→${e.toNode}:${e.link.id}`).join('|');
+      
+      // Kontrollera om denna väg redan finns
+      if (pathSignatures.has(pathSignature)) {
+        console.log(`  ❌ Duplicerad väg avvisad: ${newLength.toFixed(0)}m`);
+        return;
+      }
+      
+      // Debug: Print detailed path information
       console.log(`  ✅ Väg ${results.length + 1}: ${newLength.toFixed(0)}m, ${signals.map(s => s.id).join(' → ')}`);
+      this.printDetailedPath(newPath, crossed, startCoord);
       
       const startObjInPath = crossed.some(o => o.id === startObj.id && o.type === startObj.type);
       if (startObjInPath) {
+        pathSignatures.add(pathSignature);
         results.push({
           edges: newPath,
           totalLength: newLength,
@@ -186,6 +233,15 @@ export class PathEngine {
     // Fortsätt BARA till grannar om vi INTE är på målkanten
     const neighbors = this.getNeighbors(current.toNode);
     for (const next of neighbors) {
+      // Förbjud U-turn tillbaka samma kant direkt
+      if (next.toNode === current.fromNode && next.link.id === current.link.id) {
+        continue;
+      }
+      
+      // Förbjud att gå igenom samma kant två gånger i rad
+      if (pathSoFar.length > 0 && next.link.id === current.link.id) {
+        continue;
+      }
       // Vinkelfilter
       if (pathSoFar.length > 0) {
         const angle = this.deflectionAngle(current, next);
@@ -203,7 +259,10 @@ export class PathEngine {
         }
       }
 
-      this.dfs(next, target, startObj, newPath, newVisited, newLength, results, cfg, depth + 1);
+      // Växelfilter med paritet: om växel finns vid denna nod, tillåt två val
+      // när startsignalens paritet matchar växelns, annars begränsa inte (merge tillåten).
+      // Här tillåter vi båda grenar – vårt vinkel/U-turn-filter skyddar ändå.
+      this.dfs(next, target, startObj, newPath, newVisited, newLength, results, cfg, depth + 1, startCoord, endCoord, maxRadius, directDistance, pathSignatures);
     }
   }
 
@@ -422,6 +481,57 @@ export class PathEngine {
     console.log(`\n📍 Närliggande objekt vid ${label} (inom 100m):`);
     for (const { obj, dist } of nearby) {
       console.log(`   ${obj.type.toUpperCase()} ${obj.id} - ${dist.toFixed(0)}m bort`);
+    }
+  }
+
+  /**
+   * Validera att alla objekt i vägen är inom 1.5x direktavstånd från start
+   */
+  private validatePathSequence(crossedObjects: CrossedObject[], startCoord: Point3D, directDistance: number): boolean {
+    const maxAllowedDistance = directDistance * 1.5;
+    
+    for (const obj of crossedObjects) {
+      // Hitta objektets koordinater
+      const objData = this.graph.findObjectById(obj.id);
+      if (!objData) continue;
+      
+      const distance = this.graph.getBirdEyeDistance(startCoord, objData.coord);
+      if (distance > maxAllowedDistance) {
+        console.log(`    ❌ ${obj.type.toUpperCase()} ${obj.id} är ${distance.toFixed(0)}m från start (max ${maxAllowedDistance.toFixed(0)}m)`);
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Print detailed path information for debugging
+   */
+  private printDetailedPath(edges: Edge[], crossedObjects: CrossedObject[], startCoord: Point3D): void {
+    console.log(`    📍 Detaljerad väg:`);
+    
+    // Print edges
+    for (let i = 0; i < edges.length; i++) {
+      const edge = edges[i];
+      const fromNode = this.graph.getNodes().get(edge.fromNode);
+      const toNode = this.graph.getNodes().get(edge.toNode);
+      
+      if (fromNode && toNode) {
+        const fromDist = this.graph.getBirdEyeDistance(startCoord, fromNode.coord);
+        const toDist = this.graph.getBirdEyeDistance(startCoord, toNode.coord);
+        console.log(`      Kant ${i + 1}: ${edge.fromNode.substring(0, 8)}... → ${edge.toNode.substring(0, 8)}... (${fromDist.toFixed(0)}m → ${toDist.toFixed(0)}m, ${edge.link.length.toFixed(0)}m)`);
+      }
+    }
+    
+    // Print crossed objects with distances
+    console.log(`    🎯 Objekt på vägen:`);
+    for (const obj of crossedObjects) {
+      const objData = this.graph.findObjectById(obj.id);
+      if (objData) {
+        const distance = this.graph.getBirdEyeDistance(startCoord, objData.coord);
+        console.log(`      ${obj.type.toUpperCase()} ${obj.id}: ${distance.toFixed(0)}m från start`);
+      }
     }
   }
 }

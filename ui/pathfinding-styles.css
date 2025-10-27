@@ -68,6 +68,38 @@
   word-break: break-word;
 }
 
+/* ====== Trainpath highlighting in SVG (classes applied to <g id="Axxxxx">) ====== */
+.trainpath-signal, .trainpath-signal * {
+  stroke: #ff5722 !important;
+  fill: rgba(255, 87, 34, 0.18) !important;
+  stroke-width: 3px !important;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 2px rgba(255,87,34,0.9)) drop-shadow(0 0 8px rgba(255,87,34,0.6));
+}
+
+.trainpath-switch, .trainpath-switch * {
+  stroke: #9c27b0 !important;
+  fill: rgba(156, 39, 176, 0.18) !important;
+  stroke-width: 3px !important;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 2px rgba(156,39,176,0.9)) drop-shadow(0 0 8px rgba(156,39,176,0.6));
+}
+
+.trainpath-dcr, .trainpath-dcr * {
+  stroke: #00bcd4 !important;
+  fill: rgba(0, 188, 212, 0.18) !important;
+  stroke-width: 3px !important;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 2px rgba(0,188,212,0.9)) drop-shadow(0 0 8px rgba(0,188,212,0.6));
+}
+
+/* generic clear marker if needed */
+.trainpath-edge, .trainpath-edge * {
+  stroke: #4caf50 !important;
+  stroke-width: 4px !important;
+  vector-effect: non-scaling-stroke;
+}
+
 .close-path-btn {
   margin-top: 12px;
   padding: 6px 12px;

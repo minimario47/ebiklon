@@ -15,6 +15,7 @@ export class GraphBuilder {
     maxNodes: 2000,
     maxPathLengthMeters: 10000,
     kPathsPerPair: 10,
+    maxSearchRadiusMeters: 100,  // 500m default radius limit
   };
 
   buildFromGeoJSON(
@@ -148,18 +149,34 @@ export class GraphBuilder {
   private snapToEdge(coord: Point3D, id: string, type: string, elementId: string): SnappedObject | null {
     let bestEdge: Edge | null = null;
     let bestDist = Infinity;
-    let bestT = 0;
+    let bestT = 0; // length-based fraction along the edge
 
     for (const edge of this.edges) {
       const line = edge.link.coords;
+      if (line.length < 2) continue;
+
+      // För korrekt längdandel: räkna segmentlängder
+      const segLens: number[] = [];
+      let totalLen = 0;
+      for (let i = 0; i < line.length - 1; i++) {
+        const dx = line[i + 1].x - line[i].x;
+        const dy = line[i + 1].y - line[i].y;
+        const L = Math.sqrt(dx * dx + dy * dy);
+        segLens.push(L);
+        totalLen += L;
+      }
+      if (totalLen === 0) continue;
+
+      let accum = 0;
       for (let i = 0; i < line.length - 1; i++) {
         const [proj, t, dist] = this.projectPointToSegment(coord, line[i], line[i + 1]);
         if (dist < bestDist) {
           bestDist = dist;
           bestEdge = edge;
-          // Normalized t för hela linjen
-          bestT = (i + t) / (line.length - 1);
+          const posLen = accum + t * segLens[i];
+          bestT = posLen / totalLen; // längdbaserad andel
         }
+        accum += segLens[i];
       }
     }
 
@@ -195,6 +212,13 @@ export class GraphBuilder {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  /**
+   * Calculate bird's eye distance between two points (ignoring Z coordinate)
+   */
+  getBirdEyeDistance(a: Point3D, b: Point3D): number {
+    return this.dist(a, b);
   }
 
   private normalizeNummer(n: any): string {
@@ -233,8 +257,15 @@ export class GraphBuilder {
    * Om längdmätning finns, använd den. Annars fallback till link.length
    */
   getCorrectedLinkLength(link: Link): number {
-    // FALLBACK: Använd link.length eftersom geografisk matchning är opålitlig
-    return link.length;
+    // Beräkna geometrisk längd från koordinaterna
+    const coords = link.coords;
+    let sum = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const dx = coords[i + 1].x - coords[i].x;
+      const dy = coords[i + 1].y - coords[i].y;
+      sum += Math.sqrt(dx * dx + dy * dy);
+    }
+    return sum;
   }
 
   /**
@@ -245,8 +276,8 @@ export class GraphBuilder {
     startFraction: number,
     endFraction: number
   ): number {
-    // FALLBACK: Använd link.length * fraction
-    return link.length * Math.abs(endFraction - startFraction);
+    const frac = Math.abs(endFraction - startFraction);
+    return this.getCorrectedLinkLength(link) * frac;
   }
 }
 

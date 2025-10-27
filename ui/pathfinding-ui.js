@@ -116,7 +116,9 @@ class PathfindingUI {
 
       console.log(`Hittade ${this.foundPaths.length} vägar`);
 
-      // Visa resultat i alert (SVG-visualisering kommer senare)
+      // Markera en av vägarna i SVG (välj kortaste)
+      this.highlightFirstPath();
+      // Visa enkel sammanfattning
       this.showPathResults();
 
     } catch (error) {
@@ -146,11 +148,59 @@ class PathfindingUI {
     
     alert(message);
     
-    // Återställ sekvens efter visning
-    this.resetPathSearch();
+    // Låt markering vara kvar tills användaren klickar X (rensa)
   }
 
   // SVG-visualisering kommer senare
+  /**
+   * Markera kortaste vägen i aktuella SVG-diagram
+   */
+  highlightFirstPath() {
+    if (!this.foundPaths || this.foundPaths.length === 0) return;
+    // Ta kortaste
+    const path = [...this.foundPaths].sort((a,b)=>a.totalLength-b.totalLength)[0];
+
+    // Rensa tidigare markeringar
+    this.clearPathLayers();
+
+    // Markera korsade objekt (signaler, växlar, dcr)
+    // Begränsa markering till diagram där användaren faktiskt klickade objekten
+    const framesSet = new Set(this.selectedObjects.map(o => o.iframe).filter(Boolean));
+    const frames = framesSet.size > 0 ? Array.from(framesSet) : Array.from(document.querySelectorAll('iframe.diagram-frame'));
+
+    const markByExtNum = (extNum, cls) => {
+      frames.forEach(iframe => {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!doc) return;
+        const svg = doc.querySelector('svg');
+        if (!svg) return;
+        // Hitta grupper som innehåller text som matchar extNum (våra diagram visar ofta numret som text)
+        const candidates = Array.from(svg.querySelectorAll('g[id^="A"]'));
+        candidates.forEach(g => {
+          const t = g.querySelector('text');
+          const desc = g.querySelector('desc');
+          const hasMatch = (t && t.textContent && t.textContent.trim() === extNum) ||
+                           (desc && desc.textContent && desc.textContent.includes(`ExtNum="${extNum}"`));
+          if (hasMatch) {
+            g.classList.add(cls);
+          }
+        });
+      });
+    };
+
+    path.crossedObjects.forEach(obj => {
+      if (obj.type === 'signal') markByExtNum(obj.id, 'trainpath-signal');
+      if (obj.type === 'poi') markByExtNum(obj.id, 'trainpath-switch');
+      if (obj.type === 'dcr') markByExtNum(obj.id, 'trainpath-dcr');
+    });
+
+    // För kanter: markera båda ändarnas grupper lätt (heuristik)
+    // Detta ger visuell hint om spåret mellan dem, tills vi har explicit edge->SVG geometri
+    path.edges.forEach(e => {
+      // markera närliggande signaler/POI på kanten (de brukar ligga nära)
+      // redan markerade ovan om de finns; lämna som är.
+    });
+  }
 
   /**
    * Återställ vägsökning och rensa visualisering
@@ -181,6 +231,15 @@ class PathfindingUI {
    */
   clearPathLayers() {
     this.pathLayers = [];
+    // Ta bort alla trainpath-klasser i alla iframes
+    document.querySelectorAll('iframe.diagram-frame').forEach(iframe => {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!doc) return;
+      const svg = doc.querySelector('svg');
+      if (!svg) return;
+      svg.querySelectorAll('.trainpath-signal, .trainpath-switch, .trainpath-dcr, .trainpath-edge')
+        .forEach(el => el.classList.remove('trainpath-signal','trainpath-switch','trainpath-dcr','trainpath-edge'));
+    });
   }
 
   // Popup-hantering tas bort (används inte med SVG)

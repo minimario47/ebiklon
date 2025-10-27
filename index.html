@@ -111,17 +111,17 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 350px;
+            width: 320px;
             height: 100vh;
             background: #ffffff;
-            border-right: 2px solid #e0e0e0;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            border-right: 1px solid #d0d0d0;
+            box-shadow: 1px 0 4px rgba(0,0,0,0.08);
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 12px;
-            transition: transform 0.3s ease;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-size: 11px;
+            transition: transform 0.2s ease;
         }
 
         .log-panel.hidden {
@@ -129,9 +129,9 @@
         }
 
         .log-header {
-            background: #f5f5f5;
-            padding: 12px 16px;
-            border-bottom: 1px solid #e0e0e0;
+            background: #f8f9fa;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -139,114 +139,114 @@
 
         .log-header h3 {
             margin: 0;
-            font-size: 14px;
-            color: #333;
-            font-weight: 600;
+            font-size: 13px;
+            color: #495057;
+            font-weight: 500;
+            letter-spacing: 0.3px;
         }
 
         .log-toggle {
-            background: #2196F3;
+            background: #6c757d;
             color: white;
             border: none;
-            border-radius: 4px;
-            width: 24px;
-            height: 24px;
+            border-radius: 2px;
+            width: 20px;
+            height: 20px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: background 0.2s;
+            font-size: 12px;
+            font-weight: 400;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .log-toggle:hover {
-            background: #1976D2;
+            background: #5a6268;
         }
 
         .log-content {
             flex: 1;
             overflow-y: auto;
-            padding: 8px;
-            background: #fafafa;
+            padding: 6px;
+            background: #ffffff;
         }
 
         .log-entry {
-            margin: 2px 0;
-            padding: 4px 8px;
-            border-radius: 3px;
+            margin: 1px 0;
+            padding: 3px 6px;
             word-wrap: break-word;
-            font-size: 11px;
-            line-height: 1.4;
+            font-size: 10px;
+            line-height: 1.3;
+            border-left: 2px solid transparent;
         }
 
         .log-entry.info {
-            background: #e3f2fd;
-            color: #1976D2;
-            border-left: 3px solid #2196F3;
+            color: #495057;
+            border-left-color: #6c757d;
         }
 
         .log-entry.success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-left: 3px solid #4CAF50;
+            color: #495057;
+            border-left-color: #28a745;
         }
 
         .log-entry.warning {
-            background: #fff3e0;
-            color: #f57c00;
-            border-left: 3px solid #FF9800;
+            color: #856404;
+            border-left-color: #ffc107;
         }
 
         .log-entry.error {
-            background: #ffebee;
-            color: #c62828;
-            border-left: 3px solid #f44336;
+            color: #721c24;
+            border-left-color: #dc3545;
         }
 
         .log-entry.debug {
-            background: #f3e5f5;
-            color: #7b1fa2;
-            border-left: 3px solid #9c27b0;
+            color: #6f42c1;
+            border-left-color: #6f42c1;
         }
 
         .log-controls {
-            padding: 8px 12px;
-            background: #f5f5f5;
-            border-top: 1px solid #e0e0e0;
+            padding: 6px 8px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
 
         .log-btn {
-            padding: 6px 12px;
-            background: #f5f5f5;
-            color: #333;
-            border: 1px solid #d0d0d0;
-            border-radius: 4px;
+            padding: 4px 8px;
+            background: #ffffff;
+            color: #495057;
+            border: 1px solid #dee2e6;
+            border-radius: 2px;
             cursor: pointer;
-            font-size: 11px;
-            font-weight: 500;
-            transition: all 0.2s;
+            font-size: 10px;
+            font-weight: 400;
+            transition: all 0.15s;
         }
 
         .log-btn:hover {
-            background: #e0e0e0;
-            border-color: #bbb;
+            background: #f8f9fa;
+            border-color: #adb5bd;
         }
 
         .log-btn.active {
-            background: #2196F3;
+            background: #6c757d;
             color: white;
-            border-color: #1976D2;
+            border-color: #6c757d;
         }
 
         .log-timestamp {
-            color: #666;
-            font-size: 10px;
-            margin-right: 8px;
+            color: #6c757d;
+            font-size: 9px;
+            margin-right: 6px;
+            font-weight: 400;
         }
 
         /* Adjust main container when log panel is visible */
         body.log-panel-open #main-container {
-            margin-left: 350px;
+            margin-left: 320px;
         }
 
         /* Log panel toggle button (when hidden) */
@@ -254,23 +254,30 @@
             position: fixed;
             left: 8px;
             top: 8px;
-            width: 40px;
-            height: 40px;
-            background: #2196F3;
+            width: 32px;
+            height: 32px;
+            background: #6c757d;
             color: white;
             border: none;
-            border-radius: 50%;
+            border-radius: 2px;
             cursor: pointer;
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 12px;
+            font-weight: 400;
             z-index: 1001;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .log-panel-toggle:hover {
-            background: #1976D2;
-            transform: scale(1.1);
+            background: #5a6268;
+        }
+
+        /* Hide toggle button when panel is open */
+        body.log-panel-open .log-panel-toggle {
+            display: none;
         }
 
         /* (grannanalys-stilar borttagna) */
@@ -280,7 +287,7 @@
     
 
     <!-- Log Panel Toggle Button -->
-    <button id="log-panel-toggle" class="log-panel-toggle">📋</button>
+    <button id="log-panel-toggle" class="log-panel-toggle">LOG</button>
 
     <!-- Log Panel -->
     <div id="log-panel" class="log-panel hidden">
